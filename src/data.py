@@ -11,6 +11,52 @@ import yfinance as yf
 
 DATA_CACHE_DIR = Path(__file__).resolve().parent.parent / "data_cache"
 
+# Common Yahoo Finance exchange suffixes, ordered by popularity.
+EXCHANGE_SUFFIXES = [
+    ".DE",   # Xetra (Germany)
+    ".AS",   # Euronext Amsterdam
+    ".L",    # London Stock Exchange
+    ".MI",   # Borsa Italiana (Milan)
+    ".PA",   # Euronext Paris
+    ".SW",   # SIX Swiss Exchange
+    ".TO",   # Toronto Stock Exchange
+    ".AX",   # Australian Securities Exchange
+    ".HK",   # Hong Kong Stock Exchange
+    ".T",    # Tokyo Stock Exchange
+]
+
+
+# ---------------------------------------------------------------------------
+# Ticker resolution
+# ---------------------------------------------------------------------------
+
+def resolve_ticker(
+    ticker: str, start: str, end: str,
+) -> tuple[str, pd.DataFrame]:
+    """Try to download data for *ticker*, falling back to exchange suffixes.
+
+    If the bare ticker returns no data **and** does not already contain a
+    ``"."``, common exchange suffixes are tried automatically.
+
+    Returns (resolved_ticker, raw_dataframe).  The DataFrame may be empty if
+    nothing worked.
+    """
+    raw = yf.download(ticker, start=start, end=end, auto_adjust=True, progress=False)
+    if not raw.empty:
+        return ticker, raw
+
+    # If the ticker already carries a suffix, don't guess further.
+    if "." in ticker:
+        return ticker, raw
+
+    for suffix in EXCHANGE_SUFFIXES:
+        candidate = f"{ticker}{suffix}"
+        raw = yf.download(candidate, start=start, end=end, auto_adjust=True, progress=False)
+        if not raw.empty:
+            return candidate, raw
+
+    return ticker, pd.DataFrame()
+
 
 # ---------------------------------------------------------------------------
 # Download & cache
@@ -35,7 +81,9 @@ def download_prices(
     Parameters
     ----------
     ticker : str
-        Yahoo Finance ticker symbol (e.g. "SPY").
+        Yahoo Finance ticker symbol (e.g. "SPY", "VWCE.DE").
+        If the ticker is not found and contains no ``"."``, common
+        exchange suffixes (.DE, .AS, .L, etc.) are tried automatically.
     start, end : str
         Date strings in "YYYY-MM-DD" format.
     use_cache : bool
@@ -53,13 +101,23 @@ def download_prices(
             df = pd.read_parquet(cache)
             return df
 
-    raw = yf.download(ticker, start=start, end=end, auto_adjust=True, progress=False)
+    resolved, raw = resolve_ticker(ticker, start, end)
 
     if raw.empty:
+        tried = [ticker] + [f"{ticker}{s}" for s in EXCHANGE_SUFFIXES]
         raise ValueError(
             f"No data returned for ticker={ticker!r} "
-            f"between {start} and {end}."
+            f"between {start} and {end}.\n"
+            f"Tried: {', '.join(tried)}\n"
+            f"If this is a non-US ticker, specify the exchange suffix "
+            f"directly, e.g. VWCE.DE (Xetra), VWCE.AS (Amsterdam), "
+            f"VWCE.L (London)."
         )
+
+    if resolved != ticker:
+        print(f"Note: ticker {ticker!r} resolved to {resolved!r}")
+        # Cache under the resolved name so future lookups hit the cache
+        ticker = resolved
 
     # yfinance may return MultiIndex columns when auto_adjust=True
     if isinstance(raw.columns, pd.MultiIndex):

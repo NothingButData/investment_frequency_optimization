@@ -13,7 +13,7 @@ matplotlib.use("Agg")
 import numpy as np
 import streamlit as st
 
-from src.data import download_prices
+from src.data import download_prices, resolve_ticker
 from src.strategies import run_all_strategies
 from src.analysis import run_full_analysis
 from src.visualization import (
@@ -49,7 +49,13 @@ st.markdown(
 with st.sidebar:
     st.header("Configuration")
 
-    ticker = st.text_input("Ticker symbol", value="SPY").upper()
+    ticker = st.text_input(
+        "Ticker symbol",
+        value="SPY",
+        help="US tickers work as-is (SPY, VTI). For non-US tickers, add "
+             "the exchange suffix (e.g. VWCE.DE for Xetra, VWCE.AS for "
+             "Amsterdam). If omitted, common suffixes are tried automatically.",
+    ).upper()
     monthly_amount = st.number_input(
         "Monthly investment ($)", min_value=1.0, value=500.0, step=50.0,
     )
@@ -89,9 +95,18 @@ if run_btn:
     with st.spinner("Downloading price data..."):
         try:
             df = download_prices(ticker, start_str, end_str)
+        except ValueError as e:
+            st.error(str(e))
+            st.stop()
         except Exception as e:
             st.error(f"Failed to download data: {e}")
             st.stop()
+
+    # Check if the ticker was auto-resolved to a different suffix
+    resolved, _ = resolve_ticker(ticker, start_str, end_str)
+    if resolved != ticker:
+        st.info(f"Ticker **{ticker}** was resolved to **{resolved}**")
+        ticker = resolved
 
     st.success(f"Loaded {len(df):,} trading days for {ticker}")
 
