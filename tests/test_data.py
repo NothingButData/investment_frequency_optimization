@@ -13,6 +13,7 @@ from src.data import (
     get_monthly_investment_dates,
     get_price_on_date,
     map_to_trading_day,
+    resolve_ticker,
     validate_prices,
 )
 
@@ -136,3 +137,55 @@ class TestGetPriceOnDate:
     def test_missing_date_raises(self, sample_prices: pd.DataFrame) -> None:
         with pytest.raises(KeyError):
             get_price_on_date(pd.Timestamp("2020-01-01"), sample_prices)
+
+
+# ---------------------------------------------------------------------------
+# resolve_ticker
+# ---------------------------------------------------------------------------
+
+def _mock_download_factory(valid_tickers: set[str]):
+    """Return a mock yf.download that only returns data for *valid_tickers*."""
+    def _mock_download(ticker, **kwargs):
+        if ticker in valid_tickers:
+            dates = pd.bdate_range("2023-01-02", "2023-01-06")
+            return pd.DataFrame(
+                {"Close": [100.0] * len(dates)},
+                index=pd.Index(dates, name="Date"),
+            )
+        return pd.DataFrame()
+    return _mock_download
+
+
+class TestResolveTicker:
+    def test_us_ticker_found_directly(self) -> None:
+        with patch("src.data.yf.download", _mock_download_factory({"SPY"})):
+            resolved, raw = resolve_ticker("SPY", "2023-01-02", "2023-01-06")
+        assert resolved == "SPY"
+        assert not raw.empty
+
+    def test_bare_eu_ticker_resolved_with_suffix(self) -> None:
+        # VWCE alone fails, but VWCE.DE succeeds
+        with patch("src.data.yf.download", _mock_download_factory({"VWCE.DE"})):
+            resolved, raw = resolve_ticker("VWCE", "2023-01-02", "2023-01-06")
+        assert resolved == "VWCE.DE"
+        assert not raw.empty
+
+    def test_suffixed_ticker_not_double_suffixed(self) -> None:
+        # If user provides VWCE.AS and it fails, don't try VWCE.AS.DE etc.
+        with patch("src.data.yf.download", _mock_download_factory(set())):
+            resolved, raw = resolve_ticker("VWCE.AS", "2023-01-02", "2023-01-06")
+        assert resolved == "VWCE.AS"
+        assert raw.empty
+
+    def test_completely_unknown_ticker_returns_empty(self) -> None:
+        with patch("src.data.yf.download", _mock_download_factory(set())):
+            resolved, raw = resolve_ticker("ZZZZZ", "2023-01-02", "2023-01-06")
+        assert resolved == "ZZZZZ"
+        assert raw.empty
+
+    def test_suffix_order_returns_first_match(self) -> None:
+        # Both .DE and .AS work — should return .DE (tried first)
+        with patch("src.data.yf.download",
+                    _mock_download_factory({"VWCE.DE", "VWCE.AS"})):
+            resolved, raw = resolve_ticker("VWCE", "2023-01-02", "2023-01-06")
+        assert resolved == "VWCE.DE"
