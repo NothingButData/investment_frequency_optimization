@@ -6,17 +6,17 @@
 # ──────────────────────────────────────────────────────────────
 
 client:
-  monthly_amount: 500          # Dollars invested per month
-  investment_day: 15           # Day-of-month you invest (1–28)
-  ticker: "SPY"                # Yahoo Finance ticker symbol
-  start_date: "2005-01-01"    # Backtest start (YYYY-MM-DD)
-  end_date: "2024-12-31"      # Backtest end   (YYYY-MM-DD)
-  transaction_cost: 0.00       # Cost per trade in dollars
+  monthly_amount: 1000        # Dollars invested per month
+  investment_day: 25          # Day-of-month you invest (1–28)
+  ticker: "VWCE.AS"           # Yahoo Finance ticker symbol
+  start_date: "2015-01-01"    # Backtest start (YYYY-MM-DD)
+  end_date: "2025-12-31"      # Backtest end   (YYYY-MM-DD)
+  transaction_cost: 0.00      # Cost per trade in dollars
 
 # ──────────────────────────────────────────────────────────────
 # Analysis settings (optional — sensible defaults are used)
 # ──────────────────────────────────────────────────────────────
 analysis:
   bootstrap_iterations: 10000  # Number of bootstrap resamples
-  random_simulations: 1000     # Monte-Carlo runs for random-day strategy
+  random_simulations: 100      # Monte-Carlo runs for random-day strategy
   confidence_level: 0.95       # For confidence intervals
