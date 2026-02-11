@@ -47,7 +47,7 @@ investment_frequency_optimization/
 ├── config.yaml              ← client-editable parameters
 ├── src/
 │   ├── __init__.py
-│   ├── data.py              ← download & cache price data
+│   ├── data.py              ← download, cache, & resolve price data
 │   ├── strategies.py        ← DCA strategy simulators
 │   ├── analysis.py          ← statistical tests & comparisons
 │   ├── visualization.py     ← chart generation
@@ -58,6 +58,8 @@ investment_frequency_optimization/
 │   ├── test_data.py
 │   ├── test_strategies.py
 │   └── test_analysis.py
+├── .devcontainer/
+│   └── devcontainer.json    ← GitHub Codespaces / VS Code dev container
 ├── output/                  ← generated charts & reports (gitignored)
 └── .gitignore
 ```
@@ -80,6 +82,11 @@ investment_frequency_optimization/
 - Handle missing trading days (weekends, holidays) — map calendar dates to the
   next available trading day.
 - Validate: no large gaps, correct date range, prices > 0.
+- **Exchange suffix resolution (`resolve_ticker`)**: if a bare ticker returns
+  no data and does not already contain a `"."`, automatically try 10 common
+  exchange suffixes (`.DE`, `.AS`, `.L`, `.MI`, `.PA`, `.SW`, `.TO`, `.AX`,
+  `.HK`, `.T`) so non-US tickers (e.g. `VWCE` → `VWCE.DE`) work without
+  requiring the user to know the exact suffix.
 
 **Step 3: Configuration (`config.yaml`)**
 - Define a sample config:
@@ -171,7 +178,7 @@ other days?"*
 |-------|---------|
 | **Day-of-month heatmap** | Final portfolio value for each day 1–28 — shows how little variation there is |
 | **Strategy comparison bar chart** | Side-by-side: client day, weekly, daily, random, best, worst |
-| **Growth curves** | Portfolio value over time for each strategy — lines nearly overlap |
+| **Growth curves** | Portfolio value over time for each strategy — lines nearly overlap. A shaded "Total invested" baseline shows cumulative contributions so gains are immediately visible. |
 | **Return difference histogram** | Bootstrap distribution of annualized return gap — centered near zero |
 | **Waterfall chart** | Breaks down what matters: asset choice → contributions → time → timing |
 | **Monthly purchase price overlay** | Client's actual purchase prices plotted on the price chart — visual check for "peak buying" |
@@ -207,6 +214,16 @@ ELSE:
 - "Compare" button: run all strategies and show results.
 - Lets the client explore "what if I invested on day 1 instead of day 15?"
   scenarios interactively.
+- Ticker input includes help text explaining exchange suffix conventions; an
+  info banner is shown when a ticker is auto-resolved to a different suffix.
+- KPI row 1: Total Invested, Your Portfolio (with dollar gain delta), Your
+  Return %, Median Day, Best Day.
+- KPI row 2: p-value, Cohen's d, Day Spread, Spread %.
+
+**Step 12b: Dev container (`.devcontainer/devcontainer.json`)**
+- GitHub Codespaces / VS Code dev container using Python 3.11.
+- Automatically installs dependencies and launches the Streamlit dashboard
+  on port 8501 so reviewers can explore results without any local setup.
 
 ---
 
@@ -242,6 +259,10 @@ ELSE:
 
 5. **Transaction costs matter for higher-frequency strategies**: Daily DCA
    with a $5/trade fee would cost $1,260/year — this must be factored in.
+   Transaction costs are modelled as a deduction *from* each investment
+   amount (`net_amount = amount - fee`), not as an additional charge on top.
+   Therefore `cost_basis = total_invested` (the fees are already embedded in
+   the invested amount and tracked separately via `total_transaction_costs`).
 
 6. **No lookahead bias**: All strategies use only information available at
    the time of each investment.
