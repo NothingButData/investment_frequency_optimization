@@ -1,4 +1,4 @@
-# Investment Frequency Optimization
+# Investment Timing Analysis
 
 **Does your monthly investment date hurt your returns?**
 
@@ -143,3 +143,7 @@ Otherwise: **stay the course**.
 ## Design Notes
 
 See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the full plan and design decisions.
+
+## See It In Action!
+
+The data app is hosted [here](https://investment-frequency-optimization.streamlit.app/).
