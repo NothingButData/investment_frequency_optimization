@@ -171,13 +171,26 @@ def plot_strategy_comparison(
 def plot_growth_curves(
     results: AllStrategyResults,
     analysis: FullAnalysis,
+    monthly_amount: float | None = None,
     save: bool = True,
 ) -> plt.Figure:
     """Portfolio value over time for key strategies."""
     fig, ax = plt.subplots(figsize=(14, 6))
 
+    # Total invested baseline — shows cumulative contributions over time
+    cd = results.client_day
+    if cd.dates:
+        invested_per = cd.total_invested / len(cd.dates)
+        cum_invested = np.cumsum([invested_per] * len(cd.dates))
+        ax.fill_between(
+            cd.dates, 0, cum_invested,
+            color=COLORS["neutral"], alpha=0.12, label="Total invested",
+        )
+        ax.plot(cd.dates, cum_invested,
+                color=COLORS["neutral"], lw=1.5, ls=":", alpha=0.6)
+
     # Plot client day
-    _plot_cumulative(ax, results.client_day,
+    _plot_cumulative(ax, cd,
                      f"Your day ({analysis.day_distribution.client_day})",
                      COLORS["client"], lw=2.5)
 

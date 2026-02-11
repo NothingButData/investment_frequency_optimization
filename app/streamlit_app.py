@@ -156,18 +156,20 @@ if run_btn:
     # ---- Key metrics ----
     st.markdown("---")
     st.header("Key Metrics")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Your Portfolio", f"${di.client_final_value:,.0f}")
-    col2.metric("Median Day", f"${di.median_day_final_value:,.0f}",
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Total Invested", f"${di.total_contributed:,.0f}")
+    col2.metric("Your Portfolio", f"${di.client_final_value:,.0f}",
+                delta=f"${di.client_final_value - di.total_contributed:,.0f}")
+    col3.metric("Your Return", f"{results.client_day.total_return:.2%}")
+    col4.metric("Median Day", f"${di.median_day_final_value:,.0f}",
                 delta=f"${di.client_vs_median_dollars:,.0f}")
-    col3.metric("Best Day", f"${di.best_day_final_value:,.0f}")
-    col4.metric("Total Contributed", f"${di.total_contributed:,.0f}")
+    col5.metric("Best Day", f"${di.best_day_final_value:,.0f}")
 
-    col5, col6, col7, col8 = st.columns(4)
-    col5.metric("p-value", f"{p_value:.4f}")
-    col6.metric("Cohen's d", f"{stat.cohens_d:.4f}")
-    col7.metric("Day Spread", f"${dist.range_dollars:,.0f}")
-    col8.metric("Spread %", f"{dist.range_pct:.2f}%")
+    col6, col7, col8, col9 = st.columns(4)
+    col6.metric("p-value", f"{p_value:.4f}")
+    col7.metric("Cohen's d", f"{stat.cohens_d:.4f}")
+    col8.metric("Day Spread", f"${dist.range_dollars:,.0f}")
+    col9.metric("Spread %", f"{dist.range_pct:.2f}%")
 
     # ---- Charts ----
     st.markdown("---")
