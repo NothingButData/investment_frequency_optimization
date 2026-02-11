@@ -37,6 +37,10 @@ client:
   transaction_cost: 0.00     # cost per trade in dollars
 ```
 
+**Non-US tickers:** Specify the exchange suffix directly (e.g. `VWCE.DE` for
+Xetra, `VWCE.AS` for Amsterdam, `VWCE.L` for London). If you omit the suffix,
+common suffixes are tried automatically before raising an error.
+
 ## What It Does
 
 The tool compares 7 investment strategies — all investing the same annual total:
@@ -68,7 +72,7 @@ After running `python main.py`, check the `output/` directory:
 | `report.md` | Full analysis report with verdict and key numbers |
 | `day_of_month.png` | Portfolio value by investment day (1-28) |
 | `strategy_comparison.png` | Side-by-side strategy comparison |
-| `growth_curves.png` | Portfolio growth over time |
+| `growth_curves.png` | Portfolio growth over time (with total-invested baseline) |
 | `bootstrap_histogram.png` | Statistical confidence interval |
 | `waterfall.png` | What factors matter most |
 | `purchase_overlay.png` | Your purchase prices on the price chart |
@@ -81,6 +85,15 @@ streamlit run app/streamlit_app.py
 
 Adjust parameters in the sidebar and click **Run Analysis** to explore
 different scenarios interactively.
+
+The dashboard shows two rows of KPI cards:
+
+- **Row 1:** Total Invested, Your Portfolio (with gain), Your Return %,
+  Median Day, Best Day
+- **Row 2:** p-value, Cohen's d, Day Spread, Spread %
+
+When a non-US ticker is entered without a suffix, the app auto-resolves it
+and displays which suffix was matched.
 
 ## Project Structure
 
@@ -96,9 +109,20 @@ different scenarios interactively.
 │   └── report.py        # Markdown report builder
 ├── app/
 │   └── streamlit_app.py # Interactive Streamlit dashboard
-├── tests/               # pytest suite (39 tests)
+├── tests/               # pytest suite (44 tests)
+├── .devcontainer/       # GitHub Codespaces / VS Code dev container
 └── output/              # Generated reports & charts
 ```
+
+## GitHub Codespaces
+
+A dev container is included (`.devcontainer/devcontainer.json`). Opening
+the repo in GitHub Codespaces (or VS Code Dev Containers) will:
+
+1. Install all Python dependencies automatically.
+2. Launch the Streamlit dashboard on port 8501 with a browser preview.
+
+No local setup required.
 
 ## Tests
 

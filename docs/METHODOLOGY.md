@@ -91,11 +91,37 @@ least 28 days. This avoids special handling for February (28/29 days) and
 months with 30 or 31 days. If a client invests on the 29th, 30th, or 31st,
 they would be mapped to day 28 in our analysis.
 
+### Non-US ticker resolution
+
+Yahoo Finance requires exchange suffixes for non-US tickers (e.g. `VWCE.DE`
+for the Xetra-listed version of the Vanguard FTSE All-World ETF). If you
+supply a bare ticker (e.g. `VWCE`) and it returns no data, the tool
+automatically retries with 10 common suffixes in order:
+
+| Suffix | Exchange |
+|--------|----------|
+| `.DE`  | Xetra (Germany) |
+| `.AS`  | Euronext Amsterdam |
+| `.L`   | London Stock Exchange |
+| `.MI`  | Borsa Italiana (Milan) |
+| `.PA`  | Euronext Paris |
+| `.SW`  | SIX Swiss Exchange |
+| `.TO`  | Toronto Stock Exchange |
+| `.AX`  | Australian Securities Exchange |
+| `.HK`  | Hong Kong Stock Exchange |
+| `.T`   | Tokyo Stock Exchange |
+
+The first suffix that returns data is used. If the ticker already contains a
+`"."`, no further guessing is attempted. If nothing works, the error message
+lists every ticker that was tried and suggests how to specify the suffix
+directly.
+
 ### Caching
 
 Downloaded data is saved locally as a Parquet file (a compact binary format)
 so that repeated runs don't re-download from Yahoo Finance. The cache key is
-based on the ticker, start date, and end date.
+based on the **resolved** ticker (after any suffix substitution), start date,
+and end date.
 
 ---
 
@@ -108,12 +134,17 @@ on each investment date:
 For each investment date:
     1. Look up the closing price on that day.
     2. Subtract the transaction cost from the investment amount.
-       (net_amount = amount - transaction_cost)
+       net_amount = amount - transaction_cost
+       (The fee is taken out of the money you send to the broker,
+        not added on top.)
     3. Calculate shares bought: shares = net_amount / price
     4. Add those shares to the running total.
+    5. Accumulate total_invested += amount
+       and       total_transaction_costs += transaction_cost
 
 After all dates are processed:
     final_value = total_shares * last_closing_price_in_the_dataset
+    cost_basis  = total_invested   (fees are already inside this figure)
 ```
 
 ### Worked example
@@ -223,8 +254,8 @@ doesn't matter much — even with perfect foresight you can't do much better.
 |---------|------------|---------|
 | **Total shares** | The cumulative number of shares purchased across all investment dates. | Sum of (net_amount / price) for each purchase |
 | **Total invested** | The sum of all dollar amounts sent to the broker (before transaction costs are subtracted from each purchase). | Sum of amount_per_investment for each purchase |
-| **Total transaction costs** | The sum of all per-trade fees paid. | Sum of transaction_cost for each purchase |
-| **Cost basis** | Total out-of-pocket cost: dollars invested plus fees. | total_invested + total_transaction_costs |
+| **Total transaction costs** | The sum of all per-trade fees paid. These are deducted *from* each investment amount, not charged on top. | Sum of transaction_cost for each purchase |
+| **Cost basis** | Total out-of-pocket cost: the full amount sent to the broker each period. Because fees are deducted from each investment (not added on top), this equals total_invested. | total_invested |
 | **Final value** | What the portfolio is worth at the end of the analysis period. | total_shares x last_closing_price |
 | **Gain** | Profit or loss in dollar terms. | final_value - cost_basis |
 | **Total return** | Percentage gain or loss relative to cost basis. | (final_value - cost_basis) / cost_basis |
@@ -402,11 +433,15 @@ daily, best day, optimal hindsight.
 ### Chart 3: Growth Curves (`growth_curves.png`)
 
 **What it shows:** Portfolio value over time for the client's day, weekly
-DCA, daily DCA, and the optimal/worst hindsight bounds.
+DCA, daily DCA, and the optimal/worst hindsight bounds. A shaded area with
+a dotted line shows cumulative contributions ("Total invested") so you can
+immediately see how much the market has grown your money above what you put in.
 
 **What to look for:**
 - All the lines should nearly overlap, which demonstrates visually that
   timing differences are dwarfed by the overall market trend.
+- The gap between the strategy lines and the shaded "Total invested" area
+  represents actual gains.
 - The optimal/worst hindsight lines form an envelope — the client's line
   should sit comfortably within it.
 
@@ -452,7 +487,7 @@ dots marking each of the client's actual purchase dates and prices.
 |------------|-------------|
 | **Fractional shares are allowed** | We assume you can buy $115.38 worth of stock even if one share costs $400. Most modern brokerages support fractional shares. If yours doesn't, there would be small rounding effects. |
 | **Prices are adjusted for dividends and splits** | We use total-return prices. If you're in a non-dividend-reinvesting account, actual results would differ slightly. |
-| **Transaction costs are flat per trade** | We model a fixed dollar fee (e.g. $5) per transaction, not a percentage. Percentage-based fees (e.g. 0.1% per trade) are not currently supported but could be added. |
+| **Transaction costs are flat per trade, deducted from the investment** | We model a fixed dollar fee (e.g. $5) per transaction, deducted from each investment amount (`net_amount = amount - fee`). The fee is *not* charged on top; it reduces the amount used to buy shares. Percentage-based fees are not currently supported. |
 | **Same total annual investment** | All strategies invest the same total per year. In practice, switching from monthly to weekly or daily doesn't change how much you invest — just when. |
 | **No tax effects** | We don't model capital gains taxes, tax-loss harvesting, or the tax implications of more-frequent trading. |
 | **No market impact** | We assume your trades don't move the market price. Valid for retail-size investments. |
@@ -479,7 +514,7 @@ dots marking each of the client's actual purchase dates and prices.
 | Adjusted close | Closing price corrected for dividends and splits |
 | Trading day | A day the stock market is open (excludes weekends and holidays) |
 | Forward-fill | When a target date is not a trading day, use the next available one |
-| Cost basis | Total money spent: contributions + transaction fees |
+| Cost basis | Total money sent to the broker: equals total_invested (fees are deducted from each investment, not added on top) |
 | Final value | total_shares x last_closing_price |
 | Total return | (final_value - cost_basis) / cost_basis |
 | p-value | Probability of observing this result if there were truly no difference |
