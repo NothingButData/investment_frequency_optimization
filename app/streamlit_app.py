@@ -13,6 +13,13 @@ matplotlib.use("Agg")
 import numpy as np
 import streamlit as st
 
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]  # repo root
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from src.data import download_prices, resolve_ticker
 from src.strategies import run_all_strategies
 from src.analysis import run_full_analysis
