@@ -55,11 +55,13 @@ def trending_prices() -> pd.DataFrame:
 
 class TestStrategyResult:
     def test_cost_basis(self) -> None:
+        # cost_basis = total_invested (fees are deducted from each
+        # investment, not charged on top)
         r = StrategyResult(
             name="test", total_shares=10, total_invested=1000,
             total_transaction_costs=50, final_value=1200,
         )
-        assert r.cost_basis == 1050
+        assert r.cost_basis == 1000
 
     def test_total_return(self) -> None:
         r = StrategyResult(
@@ -69,11 +71,12 @@ class TestStrategyResult:
         assert abs(r.total_return - 0.20) < 1e-9
 
     def test_gain(self) -> None:
+        # gain = final_value - cost_basis = 1200 - 1000 = 200
         r = StrategyResult(
             name="test", total_shares=10, total_invested=1000,
             total_transaction_costs=50, final_value=1200,
         )
-        assert r.gain == 150.0
+        assert r.gain == 200.0
 
 
 # ---------------------------------------------------------------------------

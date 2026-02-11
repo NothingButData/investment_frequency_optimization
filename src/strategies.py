@@ -43,7 +43,14 @@ class StrategyResult:
 
     @property
     def cost_basis(self) -> float:
-        return self.total_invested + self.total_transaction_costs
+        """Total out-of-pocket cost.
+
+        This equals total_invested because transaction costs are deducted
+        from each investment amount (net_amount = amount - fee), not charged
+        on top.  total_transaction_costs tracks how much of the invested
+        amount was lost to fees.
+        """
+        return self.total_invested
 
     @property
     def total_return(self) -> float:
